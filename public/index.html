@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11131a">
+  <title>Trivial Pursuit Live — Multiplayer</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app">
+  <div id="transitionOverlay" class="transition-overlay" hidden><div class="transition-card"><div id="transitionKicker" class="transition-kicker">NEXT UP</div><div id="transitionTitle" class="transition-title"></div><div id="transitionSubtitle" class="transition-subtitle"></div></div></div>
+    <div id="wedgeAwardOverlay" class="wedge-award-overlay" hidden><div class="wedge-award-card"><div class="wedge-kicker">WEDGE AWARDED</div><div id="wedgeAwardName" class="wedge-award-name"></div><div id="wedgeAwardVisual" class="wedge-award-visual"></div></div></div>
+    <div id="selectionDialog" class="selection-dialog" hidden><div class="selection-dialog-card"><div class="selection-dialog-kicker">GRAB BAG SELECTION</div><div id="selectionDialogText" class="selection-dialog-text"></div></div></div>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-mark">TP</div>
+        <div><h1>Trivial Pursuit Live</h1><p class="muted">Custom multiplayer game</p></div>
+      </div>
+      <div class="role-tabs" aria-label="View">
+        <button id="hostTab" class="active">Host</button>
+        <button id="playerTab">Player</button>
+      </div>
+    </header>
+
+    <section id="hostScreen">
+      <div class="host-toolbar">
+        <div><span class="eyebrow">HOST / TV DISPLAY</span><span id="connectionBadge" class="connection-badge">Connected</span></div>
+        <div class="toolbar-actions"><button id="fullscreenHost">Full Screen</button></div>
+      </div>
+      <div class="panel lobby-panel">
+        <div><h2>Create / host a game</h2><p class="muted">Put this screen on the TV. Players use their own devices to join.</p></div>
+        <button id="createGame" class="primary big-button">Create Game</button>
+        <div class="room-code-row"><div id="hostCode" class="code">—</div><button id="toggleRoomCode" type="button">Hide Room Code</button></div>
+        <p id="hostStatus" class="muted center">Create a game to get a join code.</p>
+      </div>
+
+      <div id="hostControls" hidden>
+        <section class="tv-scoreboard panel">
+          <div class="scoreboard-title"><span>PLAYERS</span><span id="tvRoundBadge">LOBBY</span></div>
+          <div id="hostPlayers" class="tv-players"></div>
+        </section>
+
+        <div class="host-main-grid">
+          <section class="panel game-stage">
+            <div id="hostRound" class="round"></div>
+            <div id="hostQuestion"></div>
+            <div id="hostAnswers" class="answers"></div>
+            <div id="hostReveal" class="status">Waiting for game.</div>
+            <div class="actions host-actions">
+              <button id="startGame" class="primary">Start Game</button>
+              <button id="reveal" disabled>Reveal Answer</button>
+              <button id="next" disabled>Next</button>
+              <button id="skipTurn" disabled>Skip Turn</button>
+            </div>
+          </section>
+
+          <aside class="host-sidebar">
+            <section class="panel">
+              <h2>Scores</h2><div id="hostScores"></div>
+            </section>
+            <section class="panel">
+              <h2>Categories</h2>
+              <div id="categoryEditor"></div>
+              <button id="saveCategories">Save Categories</button>
+            </section>
+            <section class="panel">
+              <h2>Question workbook</h2>
+              <input id="workbook" type="file" accept=".xlsx,.xls,.csv">
+              <button id="uploadWorkbook">Upload & Validate</button>
+              <div id="uploadStatus" class="status">No workbook uploaded.</div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="playerScreen" hidden>
+      <div class="player-topbar"><span class="eyebrow">PLAYER</span><span id="playerConnectionBadge" class="connection-badge">Connected</span></div>
+      <div class="panel join-panel">
+        <h2>Join a game</h2>
+        <label>Game code<input id="joinCode" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters"></label>
+        <label>Your name<input id="playerName" maxlength="24" placeholder="Your name" autocomplete="name"></label>
+        <button id="joinGame" class="primary big-button">Join Game</button>
+        <div id="joinStatus" class="status">Not connected.</div>
+      </div>
+      <section id="playerGame" class="player-game" hidden>
+        <div id="playerRound" class="round"></div>
+        <div class="panel player-card">
+          <div id="playerQuestion"></div>
+          <div id="playerAnswers" class="answers"></div>
+          <div id="playerStatus" class="status">Waiting.</div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
