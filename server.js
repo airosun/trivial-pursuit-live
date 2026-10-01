@@ -1149,6 +1149,14 @@ io.on("connection", socket => {
     if (!game || game.hostId !== socket.id) return ack({ ok: false, error: "Not authorized." });
     if (game.status !== "finished") return ack({ ok: false, error: "Play Again is only available after the game ends." });
     if (!game.questionBank.length) return ack({ ok: false, error: "Upload a valid question workbook first." });
+    try {
+      validateGameStartAvailability(game);
+    } catch (error) {
+      resetGameForLobby(game, { clearQuestionSet: true });
+      ack({ ok: false, error: error.message, resetQuestionSet: true });
+      emitState(game);
+      return;
+    }
     resetGameForLobby(game, { clearQuestionSet: false });
     ack({ ok: true });
     emitState(game);
