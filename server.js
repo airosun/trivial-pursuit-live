@@ -266,6 +266,8 @@ function publicGame(game, viewerId = null) {
     eliminatedPlayerIds: [...new Set([...(game.eliminated || []), ...(game.finalEliminated || [])])],
     timerSeconds: game.timerEndsAt ? Math.max(0, Math.ceil((game.timerEndsAt - Date.now()) / 1000)) : 0,
     timerEndsAt: game.timerEndsAt,
+    paused: !!game.paused,
+    pausedTimerMs: game.pausedTimerMs || 0,
     notice: game.notice || null,
     selectionNotice: game.selectionNotice || null,
     stage: game.stage || null,
@@ -373,7 +375,7 @@ function setStage(game, stage, durationMs = null) {
   if (durationMs) {
     game.stageTimerHandle = setTimeout(() => {
       game.stageTimerHandle = null;
-      if (game.status !== "playing") return;
+      if (game.status !== "playing" || game.paused) return;
       if (game.stage === stage) {
         setStage(game, "question-preview");
         emitState(game);
@@ -400,13 +402,8 @@ function activateQuestion(game) {
   startTimer(game);
 }
 
-function startTimer(game) {
-  stopTimer(game);
-  const seconds = ROUND_CONFIG[game.rounds[game.roundIndex]]?.timer || 10;
-  game.timerSeconds = seconds;
-  game.timerEndsAt = Date.now() + seconds * 1000;
-  game.timerHandle = setTimeout(() => {
-    if (game.status !== "playing" || game.revealed || game.stage !== "answering") return;
+function handleTimerExpired(game) {
+    if (game.status !== "playing" || game.paused || game.revealed || game.stage !== "answering") return;
     const round = game.rounds[game.roundIndex];
     if (round === "Grab Bag") {
       // A Grab Bag timeout counts as an incorrect selection and eliminates the
@@ -425,7 +422,15 @@ function startTimer(game) {
     else if (round === "Switchagories" && game.currentPublicQuestion) revealQuestion(game);
     else if (round === "Switchagories") advanceTurn(game);
     else revealQuestion(game);
-  }, seconds * 1000);
+  }
+
+function startTimer(game, durationMs = null) {
+  stopTimer(game);
+  const seconds = ROUND_CONFIG[game.rounds[game.roundIndex]]?.timer || 10;
+  const ms = durationMs == null ? seconds * 1000 : Math.max(1, durationMs);
+  game.timerSeconds = Math.ceil(ms / 1000);
+  game.timerEndsAt = Date.now() + ms;
+  game.timerHandle = setTimeout(() => handleTimerExpired(game), ms);
 }
 
 function initializeTurnState(game) {
@@ -992,6 +997,9 @@ app.post("/api/games", express.json(), (req, res) => {
     timerSeconds: 10,
     timerEndsAt: null,
     timerHandle: null,
+    paused: false,
+    pausedTimerMs: 0,
+    pausedStageMs: 0,
     notice: null,
     stage: null,
     stageStartedAt: null,
@@ -1215,7 +1223,7 @@ io.on("connection", socket => {
   socket.on("player:switch-category", ({ category } = {}, ack = () => {}) => {
     const game = games.get(socket.data.gameCode);
     const player = game?.players.get(socket.data.playerId);
-    if (!game || !player || game.status !== "playing" || game.rounds[game.roundIndex] !== "Switchagories") {
+    if (!game || !player || game.status !== "playing" || game.paused || game.rounds[game.roundIndex] !== "Switchagories") {
       return ack({ ok: false, error: "Category selection is not available." });
     }
     if (game.turnOrder[game.turnIndex] !== socket.data.playerId) {
@@ -1246,7 +1254,7 @@ io.on("connection", socket => {
   socket.on("player:answer", ({ value } = {}, ack = () => {}) => {
     const game = games.get(socket.data.gameCode);
     const player = game?.players.get(socket.data.playerId);
-    if (!game || !player || game.status !== "playing" || game.revealed || game.stage !== "answering") {
+    if (!game || !player || game.status !== "playing" || game.paused || game.revealed || game.stage !== "answering") {
       return ack({ ok: false, error: "Answers are not being accepted." });
     }
 
@@ -1385,9 +1393,53 @@ io.on("connection", socket => {
     emitState(game);
   });
 
+  socket.on("host:pause", (_, ack = () => {}) => {
+    const game = games.get(socket.data.gameCode);
+    if (!game || game.hostId !== socket.id) return ack({ ok: false, error: "Not authorized." });
+    if (game.status !== "playing") return ack({ ok: false, error: "The game is not currently running." });
+    if (game.stage === "wedge-award") return ack({ ok: false, error: "Wait for the wedge animation to finish before pausing." });
+
+    if (!game.paused) {
+      game.paused = true;
+      game.pausedTimerMs = game.timerEndsAt ? Math.max(1, game.timerEndsAt - Date.now()) : 0;
+      game.pausedStageMs = game.stageEndsAt ? Math.max(1, game.stageEndsAt - Date.now()) : 0;
+      if (game.timerHandle) clearTimeout(game.timerHandle);
+      if (game.stageTimerHandle) clearTimeout(game.stageTimerHandle);
+      game.timerHandle = null;
+      game.stageTimerHandle = null;
+      game.timerEndsAt = null;
+      game.stageEndsAt = null;
+      game.notice = "GAME PAUSED";
+    } else {
+      game.paused = false;
+      const timerMs = game.pausedTimerMs;
+      const stageMs = game.pausedStageMs;
+      game.pausedTimerMs = 0;
+      game.pausedStageMs = 0;
+      game.notice = null;
+      if (game.stage === "answering" && timerMs > 0 && !game.revealed) {
+        startTimer(game, timerMs);
+      } else if (stageMs > 0 && game.stage === "category-preview") {
+        game.stageStartedAt = Date.now();
+        game.stageEndsAt = Date.now() + stageMs;
+        game.stageTimerHandle = setTimeout(() => {
+          game.stageTimerHandle = null;
+          if (game.status !== "playing" || game.paused) return;
+          if (game.stage === "category-preview") {
+            setStage(game, "question-preview");
+            emitState(game);
+          }
+        }, stageMs);
+      }
+    }
+    ack({ ok: true, paused: game.paused });
+    emitState(game);
+  });
+
   socket.on("host:reveal", (_, ack = () => {}) => {
     const game = games.get(socket.data.gameCode);
     if (!game || game.hostId !== socket.id) return ack({ ok: false, error: "Not authorized." });
+    if (game.paused) return ack({ ok: false, error: "Resume the game first." });
     revealQuestion(game);
     ack({ ok: true });
   });
@@ -1395,6 +1447,7 @@ io.on("connection", socket => {
   socket.on("host:next", (_, ack = () => {}) => {
     const game = games.get(socket.data.gameCode);
     if (!game || game.hostId !== socket.id) return ack({ ok: false, error: "Not authorized." });
+    if (game.paused) return ack({ ok: false, error: "Resume the game first." });
     const round = game.rounds[game.roundIndex];
 
     if (game.status === "playing" && game.stage === "round-intro") {
@@ -1451,6 +1504,7 @@ io.on("connection", socket => {
   socket.on("host:skip-turn", (_, ack = () => {}) => {
     const game = games.get(socket.data.gameCode);
     if (!game || game.hostId !== socket.id) return ack({ ok: false, error: "Not authorized." });
+    if (game.paused) return ack({ ok: false, error: "Resume the game first." });
     const round = game.rounds[game.roundIndex];
     if (game.revealed || !["Grab Bag","Close Call","Switchagories"].includes(round)) {
       return ack({ ok: false, error: "Skip turn is only available during turn-based rounds." });
