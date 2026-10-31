@@ -3,95 +3,161 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#11131a">
-  <title>Trivial Pursuit Live — Multiplayer</title>
+  <meta name="theme-color" content="#17163f">
+  <title>Trivial Pursuit Live</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- Overlays -->
+  <div id="transitionOverlay" class="transition-overlay" hidden>
+    <div class="transition-card">
+      <div id="transitionKicker" class="transition-kicker">Next up</div>
+      <div id="transitionTitle" class="transition-title"></div>
+      <div id="transitionSubtitle" class="transition-subtitle"></div>
+    </div>
+  </div>
+  <div id="wedgeAwardOverlay" class="wedge-award-overlay" hidden>
+    <div class="wedge-award-card">
+      <div id="wedgeAwardVisual" class="wedge-award-visual"></div>
+      <div class="wedge-kicker">Wedge earned</div>
+      <div id="wedgeAwardName" class="wedge-award-name"></div>
+      <div id="wedgeAwardCategory" class="wedge-award-category"></div>
+    </div>
+  </div>
+  <div id="selectionDialog" class="selection-dialog" hidden>
+    <div class="selection-dialog-card">
+      <div class="selection-dialog-kicker">Grab Bag</div>
+      <div id="selectionDialogText" class="selection-dialog-text"></div>
+    </div>
+  </div>
+  <div id="statsModal" class="stats-modal" hidden>
+    <div class="stats-modal-backdrop"></div>
+    <div class="stats-modal-card" role="dialog" aria-modal="true" aria-labelledby="statsHeading">
+      <div class="stats-modal-header">
+        <h2 id="statsHeading">Player stats</h2>
+        <button id="closeStats" type="button" class="ghost">Close</button>
+      </div>
+      <div id="statsContent"></div>
+    </div>
+  </div>
+  <div id="dialog" class="dialog" hidden>
+    <div class="dialog-backdrop"></div>
+    <div class="dialog-card" role="alertdialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogBody">
+      <h3 id="dialogTitle"></h3>
+      <p id="dialogBody"></p>
+      <div id="dialogActions" class="dialog-actions"></div>
+    </div>
+  </div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
   <main class="app">
-  <div id="transitionOverlay" class="transition-overlay" hidden><div class="transition-card"><div id="transitionKicker" class="transition-kicker">NEXT UP</div><div id="transitionTitle" class="transition-title"></div><div id="transitionSubtitle" class="transition-subtitle"></div></div></div>
-    <div id="wedgeAwardOverlay" class="wedge-award-overlay" hidden><div class="wedge-award-card"><div class="wedge-kicker">WEDGE AWARDED</div><div id="wedgeAwardName" class="wedge-award-name"></div><div id="wedgeAwardVisual" class="wedge-award-visual"></div></div></div>
-    <div id="selectionDialog" class="selection-dialog" hidden><div class="selection-dialog-card"><div class="selection-dialog-kicker">GRAB BAG SELECTION</div><div id="selectionDialogText" class="selection-dialog-text"></div></div></div>
-    <div id="statsModal" class="stats-modal" hidden><div class="stats-modal-backdrop"></div><div class="stats-modal-card"><div class="stats-modal-header"><div><div class="eyebrow">GAME STATISTICS</div><h2>Player Stats</h2></div><button id="closeStats" type="button">Close</button></div><div id="statsContent"></div></div></div>
     <header class="app-header">
       <div class="brand">
-        <div class="brand-mark">TP</div>
-        <div><h1>Trivial Pursuit Live</h1><p class="muted">Custom multiplayer game</p></div>
+        <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+          <path d="M50 50 L50 4 A46 46 0 0 1 89.84 27 Z" fill="#4d82d9"/>
+          <path d="M50 50 L89.84 27 A46 46 0 0 1 89.84 73 Z" fill="#e85aa8"/>
+          <path d="M50 50 L89.84 73 A46 46 0 0 1 50 96 Z" fill="#e7c83b"/>
+          <path d="M50 50 L50 96 A46 46 0 0 1 10.16 73 Z" fill="#8b5bc7"/>
+          <path d="M50 50 L10.16 73 A46 46 0 0 1 10.16 27 Z" fill="#43a86b"/>
+          <path d="M50 50 L10.16 27 A46 46 0 0 1 50 4 Z" fill="#f28c28"/>
+        </svg>
+        <div class="brand-text"><h1>Trivial Pursuit <span>Live</span></h1></div>
       </div>
-      <div class="role-tabs" aria-label="View">
-        <button id="hostTab" class="active">Host</button>
-        <button id="playerTab">Player</button>
+      <div class="header-right">
+        <span id="connectionBadge" class="connection-badge" title="Connection">Connected</span>
+        <div class="role-tabs" role="tablist" aria-label="View">
+          <button id="hostTab" class="active" role="tab">Host</button>
+          <button id="playerTab" role="tab">Player</button>
+        </div>
       </div>
     </header>
 
-    <section id="hostScreen">
-      <div class="host-toolbar">
-        <div><span class="eyebrow">HOST / TV DISPLAY</span><span id="connectionBadge" class="connection-badge">Connected</span></div>
-        <div class="toolbar-actions"><button id="fullscreenHost">Full Screen</button></div>
-      </div>
-      <div class="panel lobby-panel">
-        <div><h2>Create / host a game</h2><p class="muted">Put this screen on the TV. Players use their own devices to join.</p></div>
-        <button id="createGame" class="primary big-button">Create Game</button>
-        <div class="room-code-row"><div id="hostCode" class="code">—</div><button id="toggleRoomCode" type="button">Hide Room Code</button></div>
-        <p id="hostStatus" class="muted center">Create a game to get a join code.</p>
+    <!-- HOST -->
+    <section id="hostScreen" class="host-screen">
+      <div id="hostHero" class="host-hero">
+        <div class="hero-inner">
+          <h2>Host a game on the big screen</h2>
+          <p>Put this screen on the TV. Everyone else joins from their phone with the room code.</p>
+          <button id="createGame" class="primary big-button">Create game</button>
+          <p id="hostStatus" class="hero-status"></p>
+        </div>
       </div>
 
-      <div id="hostControls" hidden>
-        <section class="tv-scoreboard panel">
-          <div class="scoreboard-title"><span>PLAYERS</span><span id="tvRoundBadge">LOBBY</span></div>
+      <div id="hostControls" class="host-controls" hidden>
+        <div class="host-toolbar">
+          <div class="toolbar-room">
+            <span class="toolbar-label">Room</span>
+            <span id="hostCode" class="room-code-small">—</span>
+            <button id="toggleRoomCode" type="button" class="ghost small">Hide code</button>
+          </div>
+          <div class="toolbar-actions">
+            <span class="kbd-hint" id="kbdHint"><kbd>Space</kbd> next · <kbd>P</kbd> pause</span>
+            <button id="fullscreenHost" class="ghost small">Full screen</button>
+          </div>
+        </div>
+
+        <section class="tv-scoreboard" aria-label="Players">
           <div id="hostPlayers" class="tv-players"></div>
         </section>
 
         <div class="host-main-grid">
-          <section class="panel game-stage">
+          <section class="game-stage" id="gameStage">
             <div id="hostRound" class="round"></div>
-            <div id="hostQuestion"></div>
+            <div id="hostQuestion" class="stage-body"></div>
             <div id="hostAnswers" class="answers"></div>
             <div id="hostReveal" class="status">Waiting for game.</div>
             <div class="actions host-actions">
-              <button id="startGame" class="primary">Start Game</button>
-              <button id="reveal" disabled>Reveal Answer</button>
+              <button id="startGame" class="primary">Start game</button>
+              <button id="reveal" disabled>Reveal answer</button>
               <button id="next" disabled>Next</button>
-              <button id="pauseGame" disabled>Pause</button>
-              <button id="skipTurn" disabled>Skip Turn</button>
-              <button id="showStats" class="primary" hidden>Show Stats</button>
-              <button id="newGame" hidden>New Game</button>
-              <button id="playAgain" hidden>Play Again</button>
+              <button id="skipTurn" disabled>Skip turn</button>
+              <button id="pauseGame" disabled class="ghost">Pause</button>
+              <button id="showStats" class="primary" hidden>Show stats</button>
+              <button id="playAgain" hidden>Play again</button>
+              <button id="newGame" hidden class="ghost">New game</button>
             </div>
           </section>
 
           <aside class="host-sidebar">
-            <section class="panel">
-              <h2>Scores</h2><div id="hostScores"></div>
+            <section class="panel" id="standingsPanel">
+              <h2>Standings</h2>
+              <div id="hostScores" class="standings"></div>
             </section>
-            <section class="panel">
+            <section class="panel setup-panel" id="workbookPanel">
+              <h2>Question workbook</h2>
+              <label class="file-drop">
+                <input id="workbook" type="file" accept=".xlsx,.xls,.csv">
+                <span id="workbookName">Choose an .xlsx or .csv file</span>
+              </label>
+              <button id="uploadWorkbook" class="wide">Upload and validate</button>
+              <div id="uploadStatus" class="status">No workbook uploaded.</div>
+            </section>
+            <section class="panel setup-panel" id="categoriesPanel">
               <h2>Categories</h2>
               <div id="categoryEditor"></div>
-              <button id="saveCategories">Save Categories</button>
-            </section>
-            <section class="panel">
-              <h2>Question workbook</h2>
-              <input id="workbook" type="file" accept=".xlsx,.xls,.csv">
-              <button id="uploadWorkbook">Upload & Validate</button>
-              <div id="uploadStatus" class="status">No workbook uploaded.</div>
+              <button id="saveCategories" class="wide">Save categories</button>
             </section>
           </aside>
         </div>
       </div>
     </section>
 
-    <section id="playerScreen" hidden>
-      <div class="player-topbar"><span class="eyebrow">PLAYER</span><span id="playerConnectionBadge" class="connection-badge">Connected</span></div>
-      <div class="panel join-panel">
-        <h2>Join a game</h2>
-        <label>Game code<input id="joinCode" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters"></label>
-        <label>Your name<input id="playerName" maxlength="24" placeholder="Your name" autocomplete="name"></label>
-        <button id="joinGame" class="primary big-button">Join Game</button>
-        <div id="joinStatus" class="status">Not connected.</div>
+    <!-- PLAYER -->
+    <section id="playerScreen" class="player-screen" hidden>
+      <div class="join-panel" id="joinPanel">
+        <h2>Join the game</h2>
+        <p class="join-sub">Enter the room code shown on the TV.</p>
+        <label>Room code<input id="joinCode" class="code-input" maxlength="6" placeholder="ABC123" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text"></label>
+        <label>Your name<input id="playerName" maxlength="24" placeholder="Your name" autocomplete="nickname"></label>
+        <button id="joinGame" class="primary big-button wide">Join game</button>
+        <div id="joinStatus" class="status" hidden></div>
       </div>
       <section id="playerGame" class="player-game" hidden>
-        <div id="playerRound" class="round"></div>
-        <div class="panel player-card">
+        <div id="playerRound" class="player-hud"></div>
+        <div class="player-card">
           <div id="playerQuestion"></div>
           <div id="playerAnswers" class="answers"></div>
           <div id="playerStatus" class="status">Waiting.</div>
