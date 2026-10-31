@@ -267,6 +267,8 @@ function publicGame(game, viewerId = null) {
     eliminatedPlayerIds: [...new Set([...(game.eliminated || []), ...(game.finalEliminated || [])])],
     timerSeconds: game.timerEndsAt ? Math.max(0, Math.ceil((game.timerEndsAt - Date.now()) / 1000)) : 0,
     timerEndsAt: game.timerEndsAt,
+    timerTotalMs: game.timerTotalMs || ((ROUND_CONFIG[game.rounds[game.roundIndex]]?.timer || 30) * 1000),
+    serverNow: Date.now(),
     paused: !!game.paused,
     pausedTimerMs: game.pausedTimerMs || 0,
     notice: game.notice || null,
@@ -430,6 +432,7 @@ function startTimer(game, durationMs = null) {
   const seconds = ROUND_CONFIG[game.rounds[game.roundIndex]]?.timer || 10;
   const ms = durationMs == null ? seconds * 1000 : Math.max(1, durationMs);
   game.timerSeconds = Math.ceil(ms / 1000);
+  game.timerTotalMs = seconds * 1000;
   game.timerEndsAt = Date.now() + ms;
   game.timerHandle = setTimeout(() => handleTimerExpired(game), ms);
 }
